@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Recommender</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen flex flex-col items-center justify-center p-6">
+    <div class="max-w-4xl w-full">
+        <header class="mb-8 text-center">
+            <h1 class="text-5xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-600">
+                Movie Recommender
+            </h1>
+            <p class="text-lg text-gray-400">
+                Enter your query to get personalized movie suggestions.
+            </p>
+        </header>
+
+        <div class="bg-gray-800 p-6 rounded-xl shadow-lg mb-8">
+            <div class="flex flex-col md:flex-row gap-4 items-center">
+                <input
+                    type="text"
+                    id="queryInput"
+                    placeholder="e.g., sci-fi movies, feel-good family films..."
+                    class="flex-grow p-3 rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400 text-gray-100 transition-all"
+                />
+                <button
+                    id="recommendButton"
+                    class="w-full md:w-auto px-6 py-3 rounded-lg text-lg font-semibold transition-transform duration-200 transform hover:scale-105 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-md"
+                >
+                    Get Recommendations
+                </button>
+            </div>
+        </div>
+
+        <div id="results" class="mt-8">
+            <!-- Recommendations will be displayed here -->
+            <div id="loadingIndicator" class="hidden text-center">
+                <div class="animate-spin inline-block w-8 h-8 border-4 border-t-4 border-blue-500 border-opacity-50 rounded-full"></div>
+                <p class="mt-2 text-gray-400">Loading recommendations...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const queryInput = document.getElementById('queryInput');
+            const recommendButton = document.getElementById('recommendButton');
+            const resultsDiv = document.getElementById('results');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+
+            const API_URL = 'http://localhost:8000/recommend';
+
+            const getRecommendations = async () => {
+                const query = queryInput.value.trim();
+                if (!query) return;
+
+                // Show loading state and clear previous results
+                loadingIndicator.classList.remove('hidden');
+                resultsDiv.innerHTML = '';
+                recommendButton.disabled = true;
+                recommendButton.textContent = 'Loading...';
+
+                try {
+                    const response = await fetch(API_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ query: query }),
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    displayRecommendations(data.recommendations);
+                } catch (error) {
+                    console.error('Error fetching recommendations:', error);
+                    resultsDiv.innerHTML = `<p class="text-red-400 text-center">Failed to fetch recommendations. Is the FastAPI server running?</p>`;
+                } finally {
+                    loadingIndicator.classList.add('hidden');
+                    recommendButton.disabled = false;
+                    recommendButton.textContent = 'Get Recommendations';
+                }
+            };
+
+            const displayRecommendations = (movies) => {
+                if (movies.length === 0) {
+                    resultsDiv.innerHTML = `<p class="text-gray-400 text-center">No recommendations found for your query.</p>`;
+                    return;
+                }
+
+                const moviesHtml = movies.map(movie => `
+                    <div class="bg-gray-800 rounded-xl shadow-lg p-4 flex items-start gap-4 transition-transform duration-200 hover:scale-105 mb-4">
+                        <div class="flex-1">
+                            <h3 class="text-xl font-bold text-gray-100">${movie.title}</h3>
+                            <p class="text-blue-400 text-sm mb-2">${movie.genres}</p>
+                            <p class="text-gray-400 text-sm">${movie.combined_features}</p>
+                        </div>
+                    </div>
+                `).join('');
+
+                resultsDiv.innerHTML = `<h2 class="text-3xl font-bold text-gray-200 mb-6 border-b border-gray-700 pb-2 text-center">Recommended for You</h2><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">${moviesHtml}</div>`;
+            };
+
+            recommendButton.addEventListener('click', getRecommendations);
+            queryInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    getRecommendations();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
